@@ -77,7 +77,7 @@ int main(int argc, char *argv[]){
     int padding_old = (4 - (in_bi.biWidth * sizeof(RGBTRIPLE)) % 4) % 4;
     
     //counters
-    int i,j,k,l=4,m;
+    int i,j,k,l,m;
     
     if(scale==1.0){
         // iterate over infile's scanlines
@@ -117,8 +117,14 @@ int main(int argc, char *argv[]){
                     
                     // write RGB triple to outfile
                     for(m=0;m<scale;m++){
-                        fwrite(&triple, sizeof(RGBTRIPLE), 1, outptr);
+                        for(l=0;l<scale;l++){
+                            fwrite(&triple, sizeof(RGBTRIPLE), 1, outptr);
+                        }
+                            
+                        fseek(outptr, (sizeof(RGBTRIPLE))*(out_bi.biWidth-scale)+padding_new, SEEK_CUR);
                     }
+                    
+                    fseek(outptr, (sizeof(RGBTRIPLE))*(scale-scale*out_bi.biWidth)-scale*padding_new, SEEK_CUR);
                 }
                 
                 // skip over padding, if any
@@ -129,12 +135,7 @@ int main(int argc, char *argv[]){
                     fputc(0x00, outptr);
                 }
                 
-                l--;
-                if(l>0){
-                    fseek(inptr, -(padding_old+in_bi.biWidth), SEEK_CUR);
-                    i--;
-                }
-                if(l==0) l=4;
+                fseek(outptr, (sizeof(RGBTRIPLE))*(out_bi.biWidth)+padding_new, SEEK_CUR);
             }
         }
         else{
@@ -152,10 +153,9 @@ int main(int argc, char *argv[]){
                     
                     for(m=0;m<mult;m++){
                         // read RGB triple from infile
-                        fread(triple, sizeof(RGBTRIPLE), mult, inptr);
-                        
-                        //next scanline
-                        fseek(inptr, in_bi.biWidth-mult+padding_old, SEEK_CUR);
+                        for(l=0;l<mult;l++){
+                            fread(&triple[l], sizeof(RGBTRIPLE), 1, inptr);
+                        }
                         
                         //reset scanline_pixel
                         scanline_pixel[m].rgbtBlue=0x00;
@@ -170,6 +170,9 @@ int main(int argc, char *argv[]){
                             triple[l].rgbtRed*=scale;
                             scanline_pixel[m].rgbtRed+=triple[l].rgbtRed;
                         }
+                        
+                        //next scanline
+                        fseek(inptr, (sizeof(RGBTRIPLE))*(in_bi.biWidth-mult)+padding_old, SEEK_CUR);
                     }
                     
                     //combining vertical pixels
@@ -190,7 +193,7 @@ int main(int argc, char *argv[]){
                     pixel.rgbtGreen=0x00;
                     pixel.rgbtRed=0x00;
                     
-                    fseek(inptr, -(mult*(in_bi.biWidth+padding_old)), SEEK_CUR);
+                    fseek(inptr, -42, SEEK_CUR);
                 }
                 
                 // skip over padding, if any
