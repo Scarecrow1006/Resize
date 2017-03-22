@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     fread(&in_bf, sizeof(BITMAPFILEHEADER), 1, inptr);
 
     // read infile's BITMAPINFOHEADER
-    BITMAPINFOHEADER in_bi;
+    BITMAPINFOHEADER bi;
     fread(&in_bi, sizeof(BITMAPINFOHEADER), 1, inptr);
 
     // ensure infile is (likely) a 24-bit uncompressed BMP 4.0
@@ -58,40 +58,25 @@ int main(int argc, char *argv[])
         return 4;
     }
     
-    //incorporating header changes
-    DWORD new_bfSize;
-    DWORD new_biSize;
-    LONG new_biWidth,new_biHeight;
-    int padding_new;
+    //header data for output file
+    BITMAPFILEHEADER out_bf=in_bf;
+    BITMAPINFOHEADER out_bi=in_bi;
     
-    new_biWidth=in_bi.biWidth*scale;
-    new_biHeight=in_bi.biHeight*scale;
+    //new width and height
+    out_bi.biWidth=in_bi.biWidth*scale;
+    out_bi.biHeight=in_bi.biHeight*scale;
     
-    padding_new = (4 - (new_biWidth * sizeof(RGBTRIPLE)) % 4) % 4;
+    //new padding
+    int padding_new = (4 - (new_biWidth * sizeof(RGBTRIPLE)) % 4) % 4;
     
-    new_biSize=((sizeof(RGBTRIPLE)*new_biWidth)+padding)*abs(new_biHeight);
-    new_bfSize=new_biSize+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+    out_bi.biSize=((sizeof(RGBTRIPLE)*out_bi.biWidth)+padding)*abs(out_bi.biHeight);
+    out_bf.bfSize=out_bi.biSize+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
 
-    // write outfile's bfType
-    fwrite(&bf, sizeof(WORD), 1, outptr);
-    
-    // write outfile's bfSize
-    fwrite(&new_bfSize, sizeof(DWORD), 1, outptr);
-    
-    // write outfile's (rest of)BITMAPFILEHEADER
-    fwrite(&in_bf+6, 2*sizeof(WORD)+sizeof(DWORD), 1, outptr);
+    // write outfile's BITMAPFILEHEADER
+    fwrite(&out_bf, sizeof(BITMAPFILEHEADER), 1, outptr);
 
-    // write outfile's biSize
-    fwrite(&new_biSize, sizeof(DWORD), 1, outptr);
-    
-    // write outfile's biWidth
-    fwrite(&new_biWidth, sizeof(LONG), 1, outptr);
-    
-    // write outfile's biHeight
-    fwrite(&new_biHeight, sizeof(LONG), 1, outptr);
-    
-    // write outfile's (rest of)BITMAPFILEHEADER
-    fwrite(&bf+12, sizeof(BITMAPFILEHEADER)-12, 1, outptr);
+    // write outfile's BITMAPINFOHEADER
+    fwrite(&out_bi, sizeof(BITMAPINFOHEADER), 1, outptr);
 
     // determine padding for scanlines
     int padding_old = (4 - (in_bi.biWidth * sizeof(RGBTRIPLE)) % 4) % 4;
