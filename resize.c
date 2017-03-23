@@ -80,7 +80,7 @@ int main(int argc, char *argv[]){
     int i,j,k,l,m;
     
     //temporarary storage
-    RGBTRIPLE triple,pixel;
+    RGBTRIPLE triple, pixel;
     
     if(scale==1.0){
         // iterate over infile's scanlines
@@ -106,36 +106,36 @@ int main(int argc, char *argv[]){
     }
     else{
         if(scale>1.0){
+            
             // iterate over infile's scanlines
-            for (i = 0; i < abs(in_bi.biHeight); i++){
-                // iterate over pixels in scanline
-                for (j = 0; j < in_bi.biWidth; j++){
+            for(i=0;i<abs(in_bi.biHeight);i++){
+                for(j=0;j<in_bi.biWidth;j++){
                     
-                    // read RGB triple from infile
-                    fread(&triple, sizeof(RGBTRIPLE), 1, inptr);
+                    fread(&triple,sizeof(RGBTRIPLE),1,inptr);
                     
-                    // write RGB triple to outfile
-                    for(m=0;m<scale;m++){
-                        for(l=0;l<scale;l++){
-                            fwrite(&triple, sizeof(RGBTRIPLE), 1, outptr);
+                    for(l=0;l<scale;l++){
+                        for(m=0;m<scale;m++){
+                            fwrite(&triple,sizeof(RGBTRIPLE),1,outptr);
                         }
-                            
-                        fseek(outptr, (sizeof(RGBTRIPLE))*(out_bi.biWidth-scale)+padding_new, SEEK_CUR);
+                        
+                        fseek(outptr,sizeof(RGBTRIPLE)*(out_bi.biWidth-scale)+padding_new,SEEK_CUR);
                     }
                     
-                    fseek(outptr, (sizeof(RGBTRIPLE))*(scale-scale*out_bi.biWidth)-scale*padding_new, SEEK_CUR);
+                    fseek(outptr,
+                        (long int) (-1)*(sizeof(RGBTRIPLE)*(scale*out_bi.biWidth-scale)+scale*padding_new),SEEK_CUR);
                 }
                 
-                // skip over padding, if any
-                fseek(inptr, padding_old, SEEK_CUR);
+                //skip over padding
+                fseek(inptr,padding_old,SEEK_CUR);
                 
-                // then add it back (to demonstrate how)
-                for (k = 0; k < padding_new; k++){
-                    fputc(0x00, outptr);
-                    fseek(outptr,sizeof(RGBTRIPLE)*(out_bi.biWidth)-padding_new,SEEK_CUR);
+                for(k=0;k<scale;k++){
+                    for(l=0;l<padding_new;l++){
+                        fputc(0x00,outptr);
+                    }
+                    fseek(outptr,sizeof(RGBTRIPLE)*out_bi.biWidth,SEEK_CUR);
                 }
                 
-                fseek(outptr,(long int) (sizeof(RGBTRIPLE))*(-out_bi.biWidth), SEEK_CUR);
+                fseek(outptr, (long int) (-3)*out_bi.biWidth,SEEK_CUR);
             }
         }
         else{
@@ -143,32 +143,36 @@ int main(int argc, char *argv[]){
             int mult=temp;
             
             //iterate over scanlines
-            for (i=0;i<abs(out_bi.biHeight);i++){
-                for (i=0;i<out_bi.biWidth;i++){
-                    for (l=0;l<mult;l++){
-                        for (m=0;m<mult;m++){
-                            fread(&triple,sizeof(RGBTRIPLE),1,inptr);
-                            pixel.rgbtBlue+=triple.rgbtBlue*scale*scale;
-                            pixel.rgbtRed+=triple.rgbtRed*scale*scale;
-                            pixel.rgbtGreen+=triple.rgbtGreen*scale*scale;
-                        }
-                        fseek(inptr,sizeof(RGBTRIPLE)*(in_bi.biWidth-mult)+padding_old,SEEK_CUR);
-                    }
-                    
-                    fwrite(&pixel,sizeof(RGBTRIPLE),1,outptr);
+            for(i=0;i<abs(out_bi.biHeight);i++){
+                for(j=0;j<out_bi.biWidth;j++){
                     
                     pixel.rgbtBlue=0x00;
                     pixel.rgbtGreen=0x00;
                     pixel.rgbtRed=0x00;
                     
-                    fseek(inptr,(long int) sizeof(RGBTRIPLE)*(mult-mult*in_bi.biWidth)-mult*padding_old,SEEK_CUR);
+                    for(l=0;l<mult;l++){
+                        for(m=0;m<mult;m++){
+                            fread(&triple,sizeof(RGBTRIPLE),1,inptr);
+                            pixel.rgbtBlue+=triple.rgbtBlue*scale*scale;
+                            pixel.rgbtGreen+=triple.rgbtGreen*scale*scale;
+                            pixel.rgbtRed+=triple.rgbtRed*scale*scale;
+                        }
+                        
+                        fseek(inptr,sizeof(RGBTRIPLE)*(in_bi.biWidth-mult)+padding_old,SEEK_CUR);
+                    }
+                    
+                    fwrite(&pixel,sizeof(RGBTRIPLE),1,outptr);
+                    
+                    fseek(inptr,
+                        -(((long int) sizeof(RGBTRIPLE))*(in_bi.biWidth*mult-mult)+mult*padding_old),SEEK_CUR);
+                    
                 }
+                
                 for(k=0;k<padding_new;k++){
                     fputc(0x00,outptr);
                 }
                 
-                //skip over infile padding
-                fseek(inptr,sizeof(RGBTRIPLE)*(in_bi.biWidth*mult-in_bi.biWidth)+mult*padding_old,SEEK_CUR);
+                fseek(inptr,sizeof(RGBTRIPLE)*((mult-1)*in_bi.biWidth)+mult*padding_old,SEEK_CUR);
             }
         }
     }
