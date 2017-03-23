@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
     int padding_new = (4 - (out_bi.biWidth * sizeof(RGBTRIPLE)) % 4) % 4;
     
     out_bi.biSizeImage=((sizeof(RGBTRIPLE)*out_bi.biWidth)+padding_new)*abs(out_bi.biHeight);
-    out_bf.bfSize=out_bi.biSize+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
+    out_bf.bfSize=out_bi.biSizeImage+sizeof(BITMAPFILEHEADER)+sizeof(BITMAPINFOHEADER);
 
     // write outfile's BITMAPFILEHEADER
     fwrite(&out_bf, sizeof(BITMAPFILEHEADER), 1, outptr);
@@ -79,13 +79,14 @@ int main(int argc, char *argv[]){
     //counters
     int i,j,k,l,m;
     
+    //temporarary storage
+    RGBTRIPLE triple,pixel;
+    
     if(scale==1.0){
         // iterate over infile's scanlines
         for (i = 0; i < abs(in_bi.biHeight); i++){
             // iterate over pixels in scanline
             for (j = 0; j < in_bi.biWidth; j++){
-                // temporary storage
-                RGBTRIPLE triple;
                 
                 // read RGB triple from infile
                 fread(&triple, sizeof(RGBTRIPLE), 1, inptr);
@@ -109,8 +110,6 @@ int main(int argc, char *argv[]){
             for (i = 0; i < abs(in_bi.biHeight); i++){
                 // iterate over pixels in scanline
                 for (j = 0; j < in_bi.biWidth; j++){
-                    // temporary storage
-                    RGBTRIPLE triple;
                     
                     // read RGB triple from infile
                     fread(&triple, sizeof(RGBTRIPLE), 1, inptr);
@@ -133,76 +132,43 @@ int main(int argc, char *argv[]){
                 // then add it back (to demonstrate how)
                 for (k = 0; k < padding_new; k++){
                     fputc(0x00, outptr);
+                    fseek(outptr,sizeof(RGBTRIPLE)*(out_bi.biWidth)-padding_new,SEEK_CUR);
                 }
                 
-                fseek(outptr, (sizeof(RGBTRIPLE))*(out_bi.biWidth)+padding_new, SEEK_CUR);
+                fseek(outptr,(long int) (sizeof(RGBTRIPLE))*(-out_bi.biWidth), SEEK_CUR);
             }
         }
         else{
             float temp=1.0/scale;
             int mult=temp;
             
-            // iterate over infile's scanlines
-            for (i = 0; i < abs(out_bi.biHeight); i++){
-                // iterate over pixels in scanline
-                for (j = 0; j < out_bi.biWidth; j++){
-                    // temporary storage
-                    RGBTRIPLE triple[mult];
-                    RGBTRIPLE scanline_pixel[mult];
-                    RGBTRIPLE pixel;
-                    
-                    for(m=0;m<mult;m++){
-                        // read RGB triple from infile
-                        for(l=0;l<mult;l++){
-                            fread(&triple[l], sizeof(RGBTRIPLE), 1, inptr);
+            //iterate over scanlines
+            for (i=0;i<abs(out_bi.biHeight);i++){
+                for (i=0;i<out_bi.biWidth;i++){
+                    for (l=0;l<mult;l++){
+                        for (m=0;m<mult;m++){
+                            fread(&triple,sizeof(RGBTRIPLE),1,inptr);
+                            pixel.rgbtBlue+=triple.rgbtBlue*scale*scale;
+                            pixel.rgbtRed+=triple.rgbtRed*scale*scale;
+                            pixel.rgbtGreen+=triple.rgbtGreen*scale*scale;
                         }
-                        
-                        //reset scanline_pixel
-                        scanline_pixel[m].rgbtBlue=0x00;
-                        scanline_pixel[m].rgbtGreen=0x00;
-                        scanline_pixel[m].rgbtRed=0x00;
-                        
-                        for(l=0;l<mult;l++){
-                            triple[l].rgbtBlue*=scale;
-                            scanline_pixel[m].rgbtBlue+=triple[l].rgbtBlue;
-                            triple[l].rgbtGreen*=scale;
-                            scanline_pixel[m].rgbtGreen+=triple[l].rgbtGreen;
-                            triple[l].rgbtRed*=scale;
-                            scanline_pixel[m].rgbtRed+=triple[l].rgbtRed;
-                        }
-                        
-                        //next scanline
-                        fseek(inptr, (sizeof(RGBTRIPLE))*(in_bi.biWidth-mult)+padding_old, SEEK_CUR);
+                        fseek(inptr,sizeof(RGBTRIPLE)*(in_bi.biWidth-mult)+padding_old,SEEK_CUR);
                     }
                     
-                    //combining vertical pixels
-                    for(l=0;l<mult;l++){
-                        scanline_pixel[l].rgbtBlue*=scale;
-                        pixel.rgbtBlue+=scanline_pixel[l].rgbtBlue;
-                        scanline_pixel[l].rgbtGreen*=scale;
-                        pixel.rgbtGreen+=scanline_pixel[l].rgbtGreen;
-                        scanline_pixel[l].rgbtRed*=scale;
-                        pixel.rgbtRed+=scanline_pixel[l].rgbtRed;
-                    }
+                    fwrite(&pixel,sizeof(RGBTRIPLE),1,outptr);
                     
-                    // write RGB triple to outfile
-                    fwrite(&pixel, sizeof(RGBTRIPLE), 1, outptr);
-                    
-                    //reset pixel
                     pixel.rgbtBlue=0x00;
                     pixel.rgbtGreen=0x00;
                     pixel.rgbtRed=0x00;
                     
-                    fseek(inptr, -42, SEEK_CUR);
+                    fseek(inptr,(long int) sizeof(RGBTRIPLE)*(mult-mult*in_bi.biWidth)-mult*padding_old,SEEK_CUR);
+                }
+                for(k=0;k<padding_new;k++){
+                    fputc(0x00,outptr);
                 }
                 
-                // skip over padding, if any
-                fseek(inptr, padding_old, SEEK_CUR);
-                
-                // then add it back (to demonstrate how)
-                for (k = 0; k < padding_new; k++){
-                    fputc(0x00, outptr);
-                }
+                //skip over infile padding
+                fseek(inptr,sizeof(RGBTRIPLE)*(in_bi.biWidth*mult-in_bi.biWidth)+mult*padding_old,SEEK_CUR);
             }
         }
     }
